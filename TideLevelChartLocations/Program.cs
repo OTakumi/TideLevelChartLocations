@@ -56,13 +56,10 @@ namespace TideLevelChartLocations
                 tideLevelChartLocation1.LocationName = locationDitailList[1].Substring(2, 2);
             }
 
-            // Serialize
-            var json = JsonSerializer.Serialize(tideLevelChartLocation1, options);
-
             // jsonファイルを生成する
             using (FileStream fs = File.Create(fileName))
             {
-                await JsonSerializer.SerializeAsync(fs, json);
+                await JsonSerializer.SerializeAsync(fs, tideLevelChartLocation1, options);
             }
 
             stopWatch.Stop();
