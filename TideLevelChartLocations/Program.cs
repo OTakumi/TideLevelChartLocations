@@ -19,7 +19,7 @@ namespace TideLevelChartLocations
         static async Task Main()
         {
             var uri = "http://www.data.jma.go.jp/kaiyou/db/tide/suisan/station2021.php";
-            var fileName = "./TideLevelChartLocations.json";
+            var fileName = "../../../outputfile/TideLevelChartLocations.json";
 
             Console.WriteLine("Start App");
             // 処理時間を計測
