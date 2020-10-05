@@ -21,7 +21,7 @@
 - MSL-潮位表基準面(cm)：MSL
 - MSLの標高(cm)：MSLElevation
 - 潮位表基準面の標高(cm)：ElevationoftheTideTableReferencePlane
-- 主要4分潮：majorQuarterTide { get; set; }<br>
+- 主要4分潮：majorQuarterTide<br>
   {
   - M2振幅(cm)：M2Amplitude
   - M2遅角(°)：M2SlowRolling
