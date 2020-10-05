@@ -1,28 +1,22 @@
-﻿using System;
+﻿using AngleSharp.Html.Dom;
+using AngleSharp.Html.Parser;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
+using System.Text.Encodings.Web;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Text.Unicode;
 using System.Threading.Tasks;
-using AngleSharp;
-using AngleSharp.Html.Dom;
-using AngleSharp.Html.Parser;
 
 namespace TideLevelChartLocations
 {
     /// <summary>
     /// 気象庁の潮位表掲載地点一覧表をjsonファイルに変換する
     /// </summary>
-    // ToDo: 潮位表掲載地点一覧表（2021年）http://www.data.jma.go.jp/kaiyou/db/tide/suisan/station2021.php をスクレイピングし、データを取得する
-    // ToDo: 取得したデータをリスト化する
-    // ToDo: リスト化したデータをjsonファイルに変換する
-
     class Program
     {
-        static async Task Main(string[] args)
+        static async Task Main()
         {
             var uri = "http://www.data.jma.go.jp/kaiyou/db/tide/suisan/station2021.php";
             var fileName = "./TideLevelChartLocations.json";
@@ -34,32 +28,60 @@ namespace TideLevelChartLocations
 
             // 1列に1つの拠点の詳細がすべて入っているリストを拠点ごとに分ける
             // 拠点ごとの情報をオブジェクトにする
-            var tideLevelChartLocations = await GetTideLevelChartLocationsInfoAsync(uri);
+            var tideLevelChartLocationsSource = await GetTideLevelChartLocationsInfoAsync(uri);
             var locationDitailList = new List<string>();
-            var tideLevelChartLocation1 = new TideLevelChartLocationsProperty();
+            string jsonString;
 
             // Json option
             var options = new JsonSerializerOptions
             {
-                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(UnicodeRanges.All),
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
                 WriteIndented = true
             };
 
-            foreach (var tideLevelChartLocation in tideLevelChartLocations)
-            {
-                foreach (var locationDitail in tideLevelChartLocation.Split("\n"))
-                {
-                    locationDitailList.Add(locationDitail);
-                }
-                tideLevelChartLocation1.Number = int.Parse(locationDitailList[0]);
-                tideLevelChartLocation1.LocationSymbol = locationDitailList[1].Substring(0, 2);
-                tideLevelChartLocation1.LocationName = locationDitailList[1].Substring(2, 2);
-            }
+            var tideLevelChartLocations = new List<TideLevelChartLocations>();
 
-            // jsonファイルを生成する
-            using (FileStream fs = File.Create(fileName))
+            using (var stream = new MemoryStream())
             {
-                await JsonSerializer.SerializeAsync(fs, tideLevelChartLocation1, options);
+                foreach (var tideLevelChartLocation in tideLevelChartLocationsSource)
+                {
+                    foreach (var locationDitail in tideLevelChartLocation.Split("\n"))
+                    {
+                        locationDitailList.Add(locationDitail);
+                    }
+                }
+                // オブジェクトを生成
+                for (int i = 0; i < tideLevelChartLocationsSource.Count; i++)
+                {
+                    tideLevelChartLocations.Add(new TideLevelChartLocations
+                    {
+                        Id = locationDitailList[i * 18],
+                        LocationSymbol = locationDitailList[i * 18 + 1].Substring(0, 2),
+                        LocationName = locationDitailList[i * 18 + 1].Substring(2),
+                        Latitude = locationDitailList[i * 18 + 2],
+                        Longitude = locationDitailList[i * 18 + 3],
+                        MSL = locationDitailList[i * 18 + 4],
+                        MSLElevation = locationDitailList[i * 18 + 5],
+                        ElevationoftheTideTableReferencePlane = locationDitailList[i * 18 + 6],
+                        majorQuarterTide = new MajorQuarterTide
+                        {
+                            M2Amplitude = locationDitailList[i * 18 + 7],
+                            M2SlowRolling = locationDitailList[i * 18 + 8],
+                            S2Amplitude = locationDitailList[i * 18 + 9],
+                            S2SlowRolling = locationDitailList[i * 18 + 10],
+                            K1Amplitude = locationDitailList[i * 18 + 11],
+                            K1SlowRolling = locationDitailList[i * 18 + 12],
+                            O1Amplitude = locationDitailList[i * 18 + 13],
+                            O1SlowRolling = locationDitailList[i * 18 + 14]
+                        },
+                        SeparationTideList = locationDitailList[i * 18 + 16],
+                        Note = locationDitailList[i * 18 + 17] == "\u00A0" ? "" : locationDitailList[i * 18 + 17]
+                    });
+                }
+
+                jsonString = JsonSerializer.Serialize(tideLevelChartLocations, options);
+                // Console.WriteLine(jsonString);
+                File.WriteAllText(fileName, jsonString);
             }
 
             stopWatch.Stop();
@@ -98,16 +120,16 @@ namespace TideLevelChartLocations
         }
     }
 
-    class TideLevelChartLocationsProperty
+    class TideLevelChartLocations
     {
-        public int Number { get; set; }
+        public string Id { get; set; }
         public string LocationSymbol { get; set; }
         public string LocationName { get; set; }
-        public double Latitude { get; set; }
-        public double Longitude { get; set; }
-        public double MSL { get; set; }
-        public double MSLElevation { get; set; }
-        public double ElevationoftheTideTableReferencePlane { get; set; }
+        public string Latitude { get; set; }
+        public string Longitude { get; set; }
+        public string MSL { get; set; }
+        public string MSLElevation { get; set; }
+        public string ElevationoftheTideTableReferencePlane { get; set; }
         public MajorQuarterTide majorQuarterTide { get; set; }
         public string SeparationTideList { get; set; }
         public string Note { get; set; }
@@ -115,13 +137,13 @@ namespace TideLevelChartLocations
 
     class MajorQuarterTide
     {
-        public double M2Amplitude { get; set; }
-        public double M2SlowRolling { get; set; }
-        public double S2Amplitude { get; set; }
-        public double S2SlowRolling { get; set; }
-        public double K1Amplitude { get; set; }
-        public double K1SlowRolling { get; set; }
-        public double O1Amplitude { get; set; }
-        public double O1SlowRolling { get; set; }
+        public string M2Amplitude { get; set; }
+        public string M2SlowRolling { get; set; }
+        public string S2Amplitude { get; set; }
+        public string S2SlowRolling { get; set; }
+        public string K1Amplitude { get; set; }
+        public string K1SlowRolling { get; set; }
+        public string O1Amplitude { get; set; }
+        public string O1SlowRolling { get; set; }
     }
 }
